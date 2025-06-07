@@ -15,9 +15,13 @@
                 <h1 class="title">
                     <i class="fas fa-robot"></i>
                     LLMGomoku
-                    <span class="subtitle">AI驱动的五子棋</span>
+                    <span class="subtitle">AI 驱动的五子棋</span>
                 </h1>
                 <div class="header-controls">
+                    <button id="contextBtn" class="btn btn-info">
+                        <i class="fas fa-history"></i>
+                        上下文 (<span id="tokenCount">0</span>)
+                    </button>
                     <button id="resetBtn" class="btn btn-secondary">
                         <i class="fas fa-redo"></i>
                         重新开始
@@ -43,6 +47,10 @@
                         <div class="status-item">
                             <span class="label">游戏状态:</span>
                             <span id="gameStatus" class="value">进行中</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">当前回合:</span>
+                            <span id="roundNumber" class="value">1</span>
                         </div>
                     </div>
                 </div>
@@ -112,6 +120,41 @@
                         <i class="fas fa-play"></i>
                         再来一局
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 上下文查看对话框 -->
+        <div id="contextModal" class="modal">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>
+                        <i class="fas fa-history"></i>
+                        LLM 上下文信息
+                    </h2>
+                    <button id="closeContextBtn" class="btn-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="context-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">保存的对话轮数:</span>
+                            <span id="contextConversationCount" class="stat-value">0</span>
+                            <span class="stat-unit">/ <span id="contextMaxHistory">5</span></span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">估算Token数:</span>
+                            <span id="contextTokenCount" class="stat-value">0</span>
+                            <span class="stat-unit">tokens</span>
+                        </div>
+                    </div>
+                    <div class="context-history">
+                        <h3>对话历史</h3>
+                        <div id="contextHistoryContent" class="history-content">
+                            <!-- 对话历史将在这里显示 -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

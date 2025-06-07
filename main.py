@@ -68,7 +68,12 @@ async def read_root():
 @app.get("/api/game/state")
 async def get_game_state():
     """获取当前游戏状态"""
-    return JSONResponse(content=game.to_json())
+    game_state = game.to_json()
+    # 添加回合数统计
+    game_state["round_number"] = len(game.move_history) // 2 + 1
+    # 添加AI最新落子信息
+    game_state["last_ai_move"] = llm_player.last_ai_move
+    return JSONResponse(content=game_state)
 
 
 @app.post("/api/game/reset")
@@ -174,6 +179,17 @@ async def get_ai_move():
     except Exception as e:
         logger.error(f"Error getting AI move: {e}")
         raise HTTPException(status_code=500, detail=f"服务器错误: {str(e)}")
+
+
+@app.get("/api/game/context")
+async def get_context_info():
+    """获取LLM上下文信息"""
+    try:
+        context_info = llm_player.get_context_info()
+        return JSONResponse(content=context_info)
+    except Exception as e:
+        logger.error(f"Error getting context info: {e}")
+        raise HTTPException(status_code=500, detail=f"获取上下文信息失败: {str(e)}")
 
 
 @app.exception_handler(Exception)

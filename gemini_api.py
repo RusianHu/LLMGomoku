@@ -200,6 +200,41 @@ class GeminiAPI:
 
             return resp
 
+        def send_json(self, text: str, schema: Optional[dict] = None, **gen_cfg) -> dict:
+            """Send user message with forced JSON response; returns model candidate JSON."""
+            self._history.append({"role": "user", "parts": [{"text": text}]})
+
+            # ① 构造强制JSON的generation_config，基于single_turn_json的实现
+            json_cfg = {"response_mime_type": "application/json"}  # 强制 JSON
+            if schema:
+                json_cfg["response_schema"] = schema
+
+            # ② 合并配置：基础配置 + JSON配置 + 传入的配置
+            merged_cfg = {**self._gen_cfg, **json_cfg, **(gen_cfg.get("generation_config") or {})}
+
+            resp = self._parent._generate_content(
+                self.model,
+                self._history,
+                system_instruction=self._system_instruction,
+                generation_config=merged_cfg
+            )
+
+            # Safely extract and persist assistant reply into history
+            if (resp.get("candidates") and
+                resp["candidates"][0].get("content") and
+                resp["candidates"][0]["content"].get("parts")):
+                parts = resp["candidates"][0]["content"]["parts"]
+                self._history.append({"role": "model", "parts": parts})
+            else:
+                # Handle cases where response doesn't contain expected parts
+                # This can happen when generation is cut off due to safety filters,
+                # token limits, or other API constraints
+                finish_reason = resp.get("candidates", [{}])[0].get("finishReason", "UNKNOWN")
+                error_parts = [{"text": f"[Response incomplete - finish reason: {finish_reason}]"}]
+                self._history.append({"role": "model", "parts": error_parts})
+
+            return resp
+
     def start_chat(
         self,
         model: str = DEFAULT_TEXT_MODEL,

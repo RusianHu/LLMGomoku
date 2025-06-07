@@ -21,11 +21,12 @@ logger = logging.getLogger(__name__)
 
 class LLMPlayer:
     """LLM 驱动的五子棋玩家"""
-    
+
     def __init__(self):
         self.gemini = GeminiAPI(GEMINI_API_KEY)
         self.chat_session = None
         self.conversation_count = 0
+        self.last_ai_move = None  # 记录AI最新落子位置
         self._init_chat_session()
     
     def _init_chat_session(self):
@@ -36,13 +37,14 @@ class LLMPlayer:
             "topP": 0.8,
             "topK": 40
         }
-        
+
         self.chat_session = self.gemini.start_chat(
             model=GEMINI_MODEL,
             system_prompt=SYSTEM_PROMPT,
             generation_config=generation_config
         )
         self.conversation_count = 0
+        self.last_ai_move = None  # 重置最新落子记录
         logger.info("LLM chat session initialized")
     
     def _manage_conversation_history(self):
@@ -66,10 +68,9 @@ class LLMPlayer:
             # 构建提示词
             prompt = self._build_prompt(game)
             
-            # 调用LLM获取JSON响应
-            response = self.gemini.single_turn_json(
-                model=GEMINI_MODEL,
-                text=prompt,
+            # 使用聊天会话发送消息以保存历史，并强制JSON输出
+            response = self.chat_session.send_json(
+                prompt,
                 schema=LLM_RESPONSE_SCHEMA,
                 generation_config={
                     "maxOutputTokens": MAX_OUTPUT_TOKENS,
@@ -85,6 +86,7 @@ class LLMPlayer:
                 # 验证移动的有效性
                 if game.is_valid_move(row, col):
                     self.conversation_count += 1
+                    self.last_ai_move = (row, col)  # 记录最新落子
                     logger.info(f"LLM chose move: ({row}, {col}) - {reasoning}")
                     return row, col, reasoning
                 else:
@@ -129,18 +131,26 @@ class LLMPlayer:
             if "candidates" not in response or not response["candidates"]:
                 logger.error("No candidates in response")
                 return None
-            
+
             candidate = response["candidates"][0]
             if "content" not in candidate or "parts" not in candidate["content"]:
                 logger.error("No content in candidate")
                 return None
-            
+
             # 获取JSON文本
             json_text = candidate["content"]["parts"][0].get("text", "")
             if not json_text:
                 logger.error("No text in response")
                 return None
-            
+
+            # 清理JSON文本（移除可能的markdown格式）
+            json_text = json_text.strip()
+            if json_text.startswith("```json"):
+                json_text = json_text[7:]
+            if json_text.endswith("```"):
+                json_text = json_text[:-3]
+            json_text = json_text.strip()
+
             # 解析JSON
             try:
                 data = json.loads(json_text)
@@ -148,23 +158,23 @@ class LLMPlayer:
                 logger.error(f"Failed to parse JSON: {e}")
                 logger.error(f"JSON text: {json_text}")
                 return None
-            
+
             # 提取移动信息
             if "move" not in data:
                 logger.error("No move in response data")
                 return None
-            
+
             move = data["move"]
             row = move.get("row")
             col = move.get("col")
             reasoning = data.get("reasoning", "No reasoning provided")
-            
+
             if row is None or col is None:
                 logger.error("Invalid move coordinates")
                 return None
-            
+
             return int(row), int(col), reasoning
-            
+
         except Exception as e:
             logger.error(f"Error parsing response: {e}")
             return None
@@ -192,3 +202,35 @@ class LLMPlayer:
             # 如果没有找到合适位置，选择第一个空位
             pos = empty_positions[0]
             return pos[0], pos[1], "Fallback move: chose first available position"
+
+    def get_context_info(self) -> Dict[str, Any]:
+        """获取上下文信息，包括token统计"""
+        context_info = {
+            "conversation_count": self.conversation_count,
+            "max_conversation_history": MAX_CONVERSATION_HISTORY,
+            "estimated_tokens": 0,
+            "context_history": [],
+            "last_ai_move": self.last_ai_move
+        }
+
+        if self.chat_session and hasattr(self.chat_session, 'history'):
+            history = self.chat_session.history
+            context_info["context_history"] = history
+
+            # 估算token数量（简单估算：每个字符约0.75个token，英文单词约1个token）
+            total_chars = 0
+            for message in history:
+                if "parts" in message:
+                    for part in message["parts"]:
+                        if "text" in part:
+                            text = part["text"]
+                            # 中文字符数 + 英文单容数的估算
+                            chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+                            other_chars = len(text) - chinese_chars
+                            total_chars += chinese_chars + other_chars * 0.5
+
+            # 估算token数（包括系统提示词）
+            system_prompt_tokens = len(SYSTEM_PROMPT) * 0.75
+            context_info["estimated_tokens"] = int(total_chars * 0.75 + system_prompt_tokens)
+
+        return context_info

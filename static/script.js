@@ -16,25 +16,38 @@ class GomokuUI {
         // 获取DOM元素
         this.currentPlayerElement = document.getElementById('currentPlayer');
         this.gameStatusElement = document.getElementById('gameStatus');
+        this.roundNumberElement = document.getElementById('roundNumber');
+        this.tokenCountElement = document.getElementById('tokenCount');
         this.aiThinkingElement = document.getElementById('aiThinking');
         this.aiAnalysisElement = document.getElementById('aiAnalysis');
         this.aiMoveElement = document.getElementById('aiMove');
         this.aiReasoningElement = document.getElementById('aiReasoning');
         this.messageToast = document.getElementById('messageToast');
         this.gameOverModal = document.getElementById('gameOverModal');
+        this.contextModal = document.getElementById('contextModal');
         this.resetBtn = document.getElementById('resetBtn');
         this.playAgainBtn = document.getElementById('playAgainBtn');
+        this.contextBtn = document.getElementById('contextBtn');
+        this.closeContextBtn = document.getElementById('closeContextBtn');
     }
 
     bindEvents() {
         // 绑定事件
         this.resetBtn.addEventListener('click', () => this.resetGame());
         this.playAgainBtn.addEventListener('click', () => this.resetGame());
-        
+        this.contextBtn.addEventListener('click', () => this.showContextModal());
+        this.closeContextBtn.addEventListener('click', () => this.hideContextModal());
+
         // 点击模态框外部关闭
         this.gameOverModal.addEventListener('click', (e) => {
             if (e.target === this.gameOverModal) {
                 this.hideGameOverModal();
+            }
+        });
+
+        this.contextModal.addEventListener('click', (e) => {
+            if (e.target === this.contextModal) {
+                this.hideContextModal();
             }
         });
     }
@@ -45,6 +58,7 @@ class GomokuUI {
             const gameState = await response.json();
             this.updateGameState(gameState);
             this.renderBoard();
+            this.updateTokenCount();
         } catch (error) {
             console.error('Failed to load game state:', error);
             this.showMessage('加载游戏状态失败', 'error');
@@ -55,10 +69,15 @@ class GomokuUI {
         this.gameState = gameState;
         this.isPlayerTurn = gameState.current_player === 1;
         this.isGameOver = gameState.game_over;
-        
+
         // 更新UI显示
         this.currentPlayerElement.textContent = this.isPlayerTurn ? '玩家' : 'AI';
-        
+
+        // 更新回合数
+        if (gameState.round_number) {
+            this.roundNumberElement.textContent = gameState.round_number;
+        }
+
         if (this.isGameOver) {
             let statusText = '游戏结束';
             if (gameState.winner === 1) {
@@ -76,10 +95,13 @@ class GomokuUI {
 
     renderBoard() {
         if (!this.gameState) return;
-        
+
         // 清空棋盘
         this.boardElement.innerHTML = '';
-        
+
+        // 获取AI最新落子位置
+        const lastAiMove = this.gameState.last_ai_move;
+
         // 创建棋盘格子
         for (let row = 0; row < 15; row++) {
             for (let col = 0; col < 15; col++) {
@@ -87,20 +109,25 @@ class GomokuUI {
                 cell.className = 'cell';
                 cell.dataset.row = row;
                 cell.dataset.col = col;
-                
+
                 // 设置棋子状态
                 const cellValue = this.gameState.board[row][col];
                 if (cellValue === 1) {
                     cell.classList.add('player');
                 } else if (cellValue === 2) {
                     cell.classList.add('ai');
+
+                    // 高亮AI最新落子
+                    if (lastAiMove && lastAiMove[0] === row && lastAiMove[1] === col) {
+                        cell.classList.add('ai-latest');
+                    }
                 }
-                
+
                 // 绑定点击事件
                 if (cellValue === 0 && !this.isGameOver && this.isPlayerTurn) {
                     cell.addEventListener('click', () => this.makeMove(row, col));
                 }
-                
+
                 this.boardElement.appendChild(cell);
             }
         }
@@ -139,7 +166,10 @@ class GomokuUI {
             if (result.ai_move) {
                 this.showAIAnalysis(result.ai_move);
             }
-            
+
+            // 更新token计数
+            this.updateTokenCount();
+
             // 显示消息
             this.showMessage(result.message, result.success ? 'success' : 'error');
             
@@ -170,6 +200,7 @@ class GomokuUI {
             this.renderBoard();
             this.hideGameOverModal();
             this.hideAIAnalysis();
+            this.updateTokenCount();
             this.showMessage('游戏已重置', 'success');
             
         } catch (error) {
@@ -260,6 +291,78 @@ class GomokuUI {
 
     hideGameOverModal() {
         this.gameOverModal.classList.remove('show');
+    }
+
+    async updateTokenCount() {
+        try {
+            const response = await fetch('/api/game/context');
+            const contextInfo = await response.json();
+            this.tokenCountElement.textContent = contextInfo.estimated_tokens || 0;
+        } catch (error) {
+            console.error('Failed to update token count:', error);
+            this.tokenCountElement.textContent = '?';
+        }
+    }
+
+    async showContextModal() {
+        try {
+            const response = await fetch('/api/game/context');
+            const contextInfo = await response.json();
+
+            // 更新统计信息
+            document.getElementById('contextConversationCount').textContent = contextInfo.conversation_count || 0;
+            document.getElementById('contextMaxHistory').textContent = contextInfo.max_conversation_history || 5;
+            document.getElementById('contextTokenCount').textContent = contextInfo.estimated_tokens || 0;
+
+            // 更新对话历史
+            const historyContent = document.getElementById('contextHistoryContent');
+            historyContent.innerHTML = '';
+
+            if (contextInfo.context_history && contextInfo.context_history.length > 0) {
+                contextInfo.context_history.forEach((message, index) => {
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `history-message ${message.role}`;
+
+                    const roleSpan = document.createElement('span');
+                    roleSpan.className = 'message-role';
+                    roleSpan.textContent = message.role === 'user' ? '用户' :
+                                          message.role === 'model' ? 'AI' : '系统';
+
+                    const contentDiv = document.createElement('div');
+                    contentDiv.className = 'message-content';
+
+                    if (message.parts && message.parts.length > 0) {
+                        message.parts.forEach(part => {
+                            if (part.text) {
+                                const textP = document.createElement('p');
+                                textP.textContent = part.text.length > 200 ?
+                                    part.text.substring(0, 200) + '...' : part.text;
+                                contentDiv.appendChild(textP);
+                            }
+                        });
+                    }
+
+                    messageDiv.appendChild(roleSpan);
+                    messageDiv.appendChild(contentDiv);
+                    historyContent.appendChild(messageDiv);
+                });
+            } else {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-history';
+                emptyDiv.textContent = '暂无对话历史';
+                historyContent.appendChild(emptyDiv);
+            }
+
+            this.contextModal.classList.add('show');
+
+        } catch (error) {
+            console.error('Failed to load context info:', error);
+            this.showMessage('加载上下文信息失败', 'error');
+        }
+    }
+
+    hideContextModal() {
+        this.contextModal.classList.remove('show');
     }
 }
 

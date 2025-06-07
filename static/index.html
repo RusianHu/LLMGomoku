@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLMGomoku - AI五子棋</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">
+                    <i class="fas fa-robot"></i>
+                    LLMGomoku
+                    <span class="subtitle">AI驱动的五子棋</span>
+                </h1>
+                <div class="header-controls">
+                    <button id="resetBtn" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i>
+                        重新开始
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 游戏信息面板 -->
+            <div class="game-info">
+                <div class="info-card">
+                    <div class="info-header">
+                        <i class="fas fa-info-circle"></i>
+                        游戏状态
+                    </div>
+                    <div class="info-content">
+                        <div class="status-item">
+                            <span class="label">当前回合:</span>
+                            <span id="currentPlayer" class="value">玩家</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="label">游戏状态:</span>
+                            <span id="gameStatus" class="value">进行中</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI思考面板 -->
+                <div class="ai-thinking" id="aiThinking" style="display: none;">
+                    <div class="thinking-header">
+                        <i class="fas fa-brain"></i>
+                        AI正在思考...
+                    </div>
+                    <div class="thinking-animation">
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                        <div class="dot"></div>
+                    </div>
+                </div>
+
+                <!-- AI分析面板 -->
+                <div class="ai-analysis" id="aiAnalysis" style="display: none;">
+                    <div class="analysis-header">
+                        <i class="fas fa-lightbulb"></i>
+                        AI分析
+                    </div>
+                    <div class="analysis-content">
+                        <div class="analysis-move">
+                            <strong>AI选择:</strong> <span id="aiMove">-</span>
+                        </div>
+                        <div class="analysis-reasoning">
+                            <strong>思路:</strong> <span id="aiReasoning">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 棋盘区域 -->
+            <div class="game-board-container">
+                <div class="board-wrapper">
+                    <div id="gameBoard" class="game-board">
+                        <!-- 棋盘将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 消息提示 -->
+        <div id="messageToast" class="message-toast">
+            <div class="toast-content">
+                <i class="toast-icon"></i>
+                <span class="toast-text"></span>
+            </div>
+        </div>
+
+        <!-- 游戏结束对话框 -->
+        <div id="gameOverModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="gameOverTitle">游戏结束</h2>
+                </div>
+                <div class="modal-body">
+                    <div class="game-result">
+                        <i id="resultIcon" class="result-icon"></i>
+                        <p id="gameOverMessage">恭喜获胜！</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="playAgainBtn" class="btn btn-primary">
+                        <i class="fas fa-play"></i>
+                        再来一局
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

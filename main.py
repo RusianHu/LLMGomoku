@@ -24,7 +24,7 @@ if not os.path.exists("config.py"):
 
 from game_logic import GomokuGame
 from llm_player import LLMPlayer
-from config import HOST, PORT, DEBUG, PLAYER_SYMBOL, AI_SYMBOL
+from config import HOST, PORT, DEBUG, PLAYER_SYMBOL, AI_SYMBOL, DEBUG_MODE
 
 # 设置日志
 logging.basicConfig(level=logging.INFO)
@@ -201,6 +201,20 @@ async def get_context_info():
     except Exception as e:
         logger.error(f"Error getting context info: {e}")
         raise HTTPException(status_code=500, detail=f"获取上下文信息失败: {str(e)}")
+
+
+@app.get("/api/game/debug")
+async def get_debug_info():
+    """获取调试信息"""
+    try:
+        if not DEBUG_MODE:
+            raise HTTPException(status_code=404, detail="调试模式未启用")
+
+        debug_info = llm_player.get_debug_info()
+        return JSONResponse(content=debug_info)
+    except Exception as e:
+        logger.error(f"Error getting debug info: {e}")
+        raise HTTPException(status_code=500, detail=f"获取调试信息失败: {str(e)}")
 
 
 @app.exception_handler(Exception)

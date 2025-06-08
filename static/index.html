@@ -95,6 +95,44 @@
             </div>
         </main>
 
+        <!-- 调试窗口 -->
+        <button id="toggleDebugBtn" class="btn-debug-toggle">
+            <i class="fas fa-bug"></i>
+        </button>
+        <div id="debugPanel" class="debug-panel">
+            <div class="debug-header">
+                <div class="debug-title">
+                    <i class="fas fa-bug"></i>
+                    调试信息
+                </div>
+                <div class="debug-controls">
+                    <button id="refreshDebugBtn" class="btn-debug">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="debug-content">
+                <div class="debug-section">
+                    <h4>最新请求时间</h4>
+                    <div id="debugRequestTime" class="debug-value">-</div>
+                </div>
+
+                <div class="debug-section">
+                    <h4>最新请求</h4>
+                    <div class="debug-json-container">
+                        <pre id="debugRequest" class="debug-json">暂无数据</pre>
+                    </div>
+                </div>
+
+                <div class="debug-section">
+                    <h4>最新响应</h4>
+                    <div class="debug-json-container">
+                        <pre id="debugResponse" class="debug-json">暂无数据</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 消息提示 -->
         <div id="messageToast" class="message-toast">
             <div class="toast-content">

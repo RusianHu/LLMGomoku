@@ -6,7 +6,8 @@ class GomokuUI {
         this.isPlayerTurn = true;
         this.isGameOver = false;
         this.boardElement = document.getElementById('gameBoard');
-        
+        this.lastHighlightedCell = null; // 记录上次高亮的格子
+
         this.initializeElements();
         this.bindEvents();
         this.loadGameState();
@@ -29,6 +30,14 @@ class GomokuUI {
         this.playAgainBtn = document.getElementById('playAgainBtn');
         this.contextBtn = document.getElementById('contextBtn');
         this.closeContextBtn = document.getElementById('closeContextBtn');
+
+        // 调试窗口元素
+        this.debugPanel = document.getElementById('debugPanel');
+        this.toggleDebugBtn = document.getElementById('toggleDebugBtn');
+        this.refreshDebugBtn = document.getElementById('refreshDebugBtn');
+        this.debugRequestTime = document.getElementById('debugRequestTime');
+        this.debugRequest = document.getElementById('debugRequest');
+        this.debugResponse = document.getElementById('debugResponse');
     }
 
     bindEvents() {
@@ -37,6 +46,14 @@ class GomokuUI {
         this.playAgainBtn.addEventListener('click', () => this.resetGame());
         this.contextBtn.addEventListener('click', () => this.showContextModal());
         this.closeContextBtn.addEventListener('click', () => this.hideContextModal());
+
+        // 调试窗口事件
+        if (this.toggleDebugBtn) {
+            this.toggleDebugBtn.addEventListener('click', () => this.toggleDebugPanel());
+        }
+        if (this.refreshDebugBtn) {
+            this.refreshDebugBtn.addEventListener('click', () => this.refreshDebugInfo());
+        }
 
         // 点击模态框外部关闭
         this.gameOverModal.addEventListener('click', (e) => {
@@ -116,11 +133,6 @@ class GomokuUI {
                     cell.classList.add('player');
                 } else if (cellValue === 2) {
                     cell.classList.add('ai');
-
-                    // 高亮AI最新落子
-                    if (lastAiMove && lastAiMove[0] === row && lastAiMove[1] === col) {
-                        cell.classList.add('ai-latest');
-                    }
                 }
 
                 // 绑定点击事件
@@ -130,6 +142,25 @@ class GomokuUI {
 
                 this.boardElement.appendChild(cell);
             }
+        }
+
+        // 清除之前的高亮效果
+        if (this.lastHighlightedCell) {
+            this.lastHighlightedCell.classList.remove('ai-latest');
+            this.lastHighlightedCell = null;
+        }
+
+        // 在DOM更新后添加AI最新落子高亮效果
+        if (lastAiMove) {
+            setTimeout(() => {
+                const targetCell = this.boardElement.querySelector(
+                    `[data-row="${lastAiMove[0]}"][data-col="${lastAiMove[1]}"]`
+                );
+                if (targetCell && targetCell.classList.contains('ai')) {
+                    targetCell.classList.add('ai-latest');
+                    this.lastHighlightedCell = targetCell;
+                }
+            }, 50);
         }
     }
 
@@ -155,25 +186,27 @@ class GomokuUI {
             
             const result = await response.json();
             
-            // 更新游戏状态
-            this.updateGameState(result.game_state);
-            this.renderBoard();
+            // 直接从服务器加载最新的、最权威的游戏状态
+            // 这将确保玩家的落子和AI的落子都被正确渲染
+            await this.loadGameState();
             
             // 隐藏AI思考状态
             this.hideAIThinking();
             
-            // 显示AI分析
+            // 显示AI分析 (result 仍然有用)
             if (result.ai_move) {
                 this.showAIAnalysis(result.ai_move);
             }
 
-            // 更新token计数
-            this.updateTokenCount();
+            // 刷新调试信息（如果调试窗口打开）
+            if (this.debugPanel && this.debugPanel.classList.contains('open')) {
+                this.refreshDebugInfo();
+            }
 
             // 显示消息
             this.showMessage(result.message, result.success ? 'success' : 'error');
-            
-            // 检查游戏是否结束
+
+            // 检查游戏是否结束 (loadGameState 已经更新了 isGameOver)
             if (this.isGameOver) {
                 setTimeout(() => this.showGameOverModal(), 1000);
             }
@@ -365,6 +398,72 @@ class GomokuUI {
 
     hideContextModal() {
         this.contextModal.classList.remove('show');
+    }
+
+    toggleDebugPanel() {
+        if (this.debugPanel) {
+            this.debugPanel.classList.toggle('open');
+            const icon = this.toggleDebugBtn.querySelector('i');
+            if (this.debugPanel.classList.contains('open')) {
+                icon.className = 'fas fa-times';
+                this.refreshDebugInfo(); // 打开时自动刷新
+            } else {
+                icon.className = 'fas fa-bug';
+            }
+        }
+    }
+
+    async refreshDebugInfo() {
+        if (!this.debugPanel) return;
+
+        try {
+            const response = await fetch('/api/game/debug');
+            if (!response.ok) {
+                if (response.status === 404) {
+                    this.debugRequestTime.textContent = '调试模式未启用';
+                    this.debugRequest.textContent = '调试模式未启用';
+                    this.debugResponse.textContent = '调试模式未启用';
+                    return;
+                }
+                throw new Error('获取调试信息失败');
+            }
+
+            const debugInfo = await response.json();
+
+            if (!debugInfo.debug_enabled) {
+                this.debugRequestTime.textContent = '调试模式未启用';
+                this.debugRequest.textContent = '调试模式未启用';
+                this.debugResponse.textContent = '调试模式未启用';
+                return;
+            }
+
+            // 更新请求时间
+            if (debugInfo.last_request_time) {
+                this.debugRequestTime.textContent = `${(debugInfo.last_request_time * 1000).toFixed(2)} ms`;
+            } else {
+                this.debugRequestTime.textContent = '暂无数据';
+            }
+
+            // 更新请求信息
+            if (debugInfo.last_request) {
+                this.debugRequest.textContent = JSON.stringify(debugInfo.last_request, null, 2);
+            } else {
+                this.debugRequest.textContent = '暂无数据';
+            }
+
+            // 更新响应信息
+            if (debugInfo.last_response) {
+                this.debugResponse.textContent = JSON.stringify(debugInfo.last_response, null, 2);
+            } else {
+                this.debugResponse.textContent = '暂无数据';
+            }
+
+        } catch (error) {
+            console.error('Failed to refresh debug info:', error);
+            this.debugRequestTime.textContent = '获取失败';
+            this.debugRequest.textContent = '获取失败: ' + error.message;
+            this.debugResponse.textContent = '获取失败: ' + error.message;
+        }
     }
 }
 

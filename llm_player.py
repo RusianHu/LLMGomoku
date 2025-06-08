@@ -5,6 +5,7 @@ LLM player logic supporting multiple providers (Gemini and LMStudio)
 
 import json
 import logging
+import time
 from typing import Dict, Any, Tuple, Optional
 from gemini_api import GeminiAPI
 from lmstudio_adapter import LMStudioAdapter
@@ -13,7 +14,7 @@ from config import (
     LLM_PROVIDER, GEMINI_API_KEY, GEMINI_MODEL,
     LMSTUDIO_BASE_URL, LMSTUDIO_MODEL, SYSTEM_PROMPT,
     LLM_RESPONSE_SCHEMA, MAX_CONVERSATION_HISTORY, MAX_OUTPUT_TOKENS,
-    AI_SYMBOL, PLAYER_SYMBOL, BOARD_SIZE
+    AI_SYMBOL, PLAYER_SYMBOL, BOARD_SIZE, DEBUG_MODE
 )
 
 # 设置日志
@@ -41,6 +42,14 @@ class LLMPlayer:
         self._last_session_tokens = {
             "input_tokens": 0,
             "output_tokens": 0
+        }
+
+        # 调试信息记录
+        self.debug_info = {
+            "last_request": None,
+            "last_response": None,
+            "last_request_time": 0,
+            "request_history": []  # 保存最近的几次请求响应记录
         }
 
         self._init_llm_client()
@@ -137,17 +146,32 @@ class LLMPlayer:
     def get_move(self, game: GomokuGame) -> Tuple[Optional[int], Optional[int], str]:
         """
         获取LLM的下棋决策
-        
+
         Returns:
             Tuple[row, col, reasoning]: 行号、列号、推理过程
         """
         try:
             # 管理对话历史
             self._manage_conversation_history()
-            
+
             # 构建提示词
             prompt = self._build_prompt(game)
-            
+
+            # 记录请求开始时间
+            start_time = time.time()
+
+            # 记录调试信息 - 请求
+            if DEBUG_MODE:
+                self.debug_info["last_request"] = {
+                    "timestamp": start_time,
+                    "prompt": prompt,
+                    "schema": LLM_RESPONSE_SCHEMA,
+                    "generation_config": {
+                        "maxOutputTokens": MAX_OUTPUT_TOKENS,
+                        "temperature": 0.7
+                    }
+                }
+
             # 使用聊天会话发送消息以保存历史，并强制JSON输出
             response = self.chat_session.send_json(
                 prompt,
@@ -157,7 +181,29 @@ class LLMPlayer:
                     "temperature": 0.7
                 }
             )
-            
+
+            # 计算请求时间
+            end_time = time.time()
+            request_time = end_time - start_time
+            self.debug_info["last_request_time"] = request_time
+
+            # 记录调试信息 - 响应
+            if DEBUG_MODE:
+                self.debug_info["last_response"] = {
+                    "timestamp": end_time,
+                    "response": response,
+                    "request_time": request_time
+                }
+
+                # 保存到历史记录（最多保留最近5次）
+                debug_record = {
+                    "request": self.debug_info["last_request"].copy(),
+                    "response": self.debug_info["last_response"].copy()
+                }
+                self.debug_info["request_history"].append(debug_record)
+                if len(self.debug_info["request_history"]) > 5:
+                    self.debug_info["request_history"].pop(0)
+
             # 累计Token使用量
             self._accumulate_token_usage()
 
@@ -178,7 +224,7 @@ class LLMPlayer:
             else:
                 logger.error("Failed to parse LLM response")
                 return self._fallback_move(game)
-                
+
         except Exception as e:
             logger.error(f"Error getting LLM move: {e}")
             return self._fallback_move(game)
@@ -327,5 +373,18 @@ class LLMPlayer:
                 context_info["context_history"] = converted_history
 
         return context_info
+
+    def get_debug_info(self) -> Dict[str, Any]:
+        """获取调试信息"""
+        if not DEBUG_MODE:
+            return {"debug_enabled": False}
+
+        return {
+            "debug_enabled": True,
+            "last_request": self.debug_info.get("last_request"),
+            "last_response": self.debug_info.get("last_response"),
+            "last_request_time": self.debug_info.get("last_request_time", 0),
+            "request_history": self.debug_info.get("request_history", [])
+        }
 
 

@@ -310,6 +310,8 @@ class GomokuUI {
             const contextInfo = await response.json();
 
             // 更新统计信息
+            document.getElementById('contextLlmProvider').textContent = contextInfo.llm_provider || '-';
+            document.getElementById('contextModel').textContent = contextInfo.model || '-';
             document.getElementById('contextConversationCount').textContent = contextInfo.conversation_count || 0;
             document.getElementById('contextMaxHistory').textContent = contextInfo.max_conversation_history || 5;
             document.getElementById('contextTokenCount').textContent = contextInfo.estimated_tokens || 0;

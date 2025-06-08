@@ -1,15 +1,17 @@
 """
 LLM 玩家逻辑
-LLM player logic using Gemini API
+LLM player logic supporting multiple providers (Gemini and LMStudio)
 """
 
 import json
 import logging
 from typing import Dict, Any, Tuple, Optional
 from gemini_api import GeminiAPI
+from lmstudio_adapter import LMStudioAdapter
 from game_logic import GomokuGame
 from config import (
-    GEMINI_API_KEY, GEMINI_MODEL, SYSTEM_PROMPT,
+    LLM_PROVIDER, GEMINI_API_KEY, GEMINI_MODEL,
+    LMSTUDIO_BASE_URL, LMSTUDIO_MODEL, SYSTEM_PROMPT,
     LLM_RESPONSE_SCHEMA, MAX_CONVERSATION_HISTORY, MAX_OUTPUT_TOKENS,
     AI_SYMBOL, PLAYER_SYMBOL, BOARD_SIZE
 )
@@ -20,14 +22,31 @@ logger = logging.getLogger(__name__)
 
 
 class LLMPlayer:
-    """LLM 驱动的五子棋玩家"""
+    """LLM 驱动的五子棋玩家，支持多种LLM提供商"""
 
     def __init__(self):
-        self.gemini = GeminiAPI(GEMINI_API_KEY)
+        self.provider = LLM_PROVIDER.lower()
+        self.llm_client = None
         self.chat_session = None
         self.conversation_count = 0
         self.last_ai_move = None  # 记录AI最新落子位置
+        self._init_llm_client()
         self._init_chat_session()
+
+    def _init_llm_client(self):
+        """初始化LLM客户端"""
+        if self.provider == "gemini":
+            self.llm_client = GeminiAPI(GEMINI_API_KEY)
+            self.model = GEMINI_MODEL
+            logger.info("Initialized Gemini API client")
+        elif self.provider == "lmstudio":
+            self.llm_client = LMStudioAdapter(LMSTUDIO_BASE_URL)
+            self.model = LMSTUDIO_MODEL
+            logger.info(f"Initialized LMStudio client with base URL: {LMSTUDIO_BASE_URL}")
+        else:
+            raise ValueError(f"Unsupported LLM provider: {self.provider}")
+
+        logger.info(f"Using LLM provider: {self.provider}, model: {self.model}")
     
     def _init_chat_session(self):
         """初始化聊天会话"""
@@ -38,14 +57,14 @@ class LLMPlayer:
             "topK": 40
         }
 
-        self.chat_session = self.gemini.start_chat(
-            model=GEMINI_MODEL,
+        self.chat_session = self.llm_client.start_chat(
+            model=self.model,
             system_prompt=SYSTEM_PROMPT,
             generation_config=generation_config
         )
         self.conversation_count = 0
         self.last_ai_move = None  # 重置最新落子记录
-        logger.info("LLM chat session initialized")
+        logger.info(f"LLM chat session initialized with {self.provider}")
     
     def _manage_conversation_history(self):
         """管理对话历史，保持在限制范围内"""
@@ -206,6 +225,8 @@ class LLMPlayer:
     def get_context_info(self) -> Dict[str, Any]:
         """获取上下文信息，包括token统计"""
         context_info = {
+            "llm_provider": self.provider,
+            "model": self.model,
             "conversation_count": self.conversation_count,
             "max_conversation_history": MAX_CONVERSATION_HISTORY,
             "estimated_tokens": 0,
@@ -215,22 +236,48 @@ class LLMPlayer:
 
         if self.chat_session and hasattr(self.chat_session, 'history'):
             history = self.chat_session.history
-            context_info["context_history"] = history
 
-            # 估算token数量（简单估算：每个字符约0.75个token，英文单词约1个token）
-            total_chars = 0
-            for message in history:
-                if "parts" in message:
-                    for part in message["parts"]:
-                        if "text" in part:
-                            text = part["text"]
-                            # 中文字符数 + 英文单容数的估算
-                            chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-                            other_chars = len(text) - chinese_chars
-                            total_chars += chinese_chars + other_chars * 0.5
+            # 根据提供商转换历史记录格式，统一为前端可理解的格式
+            if self.provider == "gemini":
+                # Gemini格式：直接使用
+                context_info["context_history"] = history
+                # 估算token数量
+                total_chars = 0
+                for message in history:
+                    if "parts" in message:
+                        for part in message["parts"]:
+                            if "text" in part:
+                                text = part["text"]
+                                total_chars += self._count_text_chars(text)
+
+            elif self.provider == "lmstudio":
+                # LMStudio格式：转换为前端兼容格式
+                converted_history = []
+                total_chars = 0
+
+                for message in history:
+                    if "role" in message and "content" in message:
+                        # 转换为Gemini兼容格式
+                        converted_message = {
+                            "role": message["role"],
+                            "parts": [{"text": message["content"]}]
+                        }
+                        converted_history.append(converted_message)
+
+                        # 统计字符数
+                        total_chars += self._count_text_chars(message["content"])
+
+                context_info["context_history"] = converted_history
 
             # 估算token数（包括系统提示词）
             system_prompt_tokens = len(SYSTEM_PROMPT) * 0.75
             context_info["estimated_tokens"] = int(total_chars * 0.75 + system_prompt_tokens)
 
         return context_info
+
+    def _count_text_chars(self, text: str) -> int:
+        """统计文本字符数，用于token估算"""
+        # 中文字符数 + 英文单词数的估算
+        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+        other_chars = len(text) - chinese_chars
+        return chinese_chars + int(other_chars * 0.5)

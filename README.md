@@ -8,10 +8,9 @@
 
 [English](README.en.md)
 
-一个使用 Gemini AI 驱动的五子棋游戏，采用 FastAPI + 前端 Web 界面实现。
+一个使用 Gemini AI 驱动的五子棋游戏，采用 FastAPI + 前端 Web 界面实现。目前支持 Gemini 和 LM Studio 作为 LLM 提供商。
 
 ![image](https://github.com/user-attachments/assets/d2bf9a20-6642-4938-85af-da78d8ab960b)
-
 
 ## 技术栈
 

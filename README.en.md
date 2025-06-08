@@ -6,7 +6,9 @@
 [![GitHub stars](https://img.shields.io/github/stars/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/stargazers)
 [![GitHub forks](https://img.shields.io/github/forks/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/network)
 
-A Gomoku game powered by Gemini AI, implemented with a FastAPI backend and a web-based frontend.
+A Gomoku game powered by Gemini AI, implemented with a FastAPI backend and a web-based frontend. Currently, Gemini and LM Studio are supported as LLM providers.
+
+![image](https://github.com/user-attachments/assets/d2bf9a20-6642-4938-85af-da78d8ab960b)
 
 ## Tech Stack
 

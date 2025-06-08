@@ -1,5 +1,11 @@
 # LLMGomoku - AI驱动的五子棋游戏
 
+[![GitHub license](https://img.shields.io/github/license/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/blob/main/LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Framework](https://img.shields.io/badge/Framework-FastAPI-green.svg)](https://fastapi.tiangolo.com/)
+[![GitHub stars](https://img.shields.io/github/stars/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/network)
+
 [English](README.en.md)
 
 一个使用 Gemini AI 驱动的五子棋游戏，采用 FastAPI + 前端 Web 界面实现。

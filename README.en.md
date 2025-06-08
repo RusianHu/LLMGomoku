@@ -1,5 +1,11 @@
 # LLMGomoku - AI-Powered Gomoku Game
 
+[![GitHub license](https://img.shields.io/github/license/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/blob/main/LICENSE)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Framework](https://img.shields.io/badge/Framework-FastAPI-green.svg)](https://fastapi.tiangolo.com/)
+[![GitHub stars](https://img.shields.io/github/stars/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/RusianHu/LLMGomoku)](https://github.com/RusianHu/LLMGomoku/network)
+
 A Gomoku game powered by Gemini AI, implemented with a FastAPI backend and a web-based frontend.
 
 ## Tech Stack

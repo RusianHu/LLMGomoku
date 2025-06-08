@@ -30,6 +30,19 @@ class LLMPlayer:
         self.chat_session = None
         self.conversation_count = 0
         self.last_ai_move = None  # 记录AI最新落子位置
+
+        # 累计Token使用量统计（本局游戏总消耗）
+        self.total_game_tokens = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0
+        }
+        # 记录上次累计的会话Token数量，避免重复计算
+        self._last_session_tokens = {
+            "input_tokens": 0,
+            "output_tokens": 0
+        }
+
         self._init_llm_client()
         self._init_chat_session()
 
@@ -64,14 +77,62 @@ class LLMPlayer:
         )
         self.conversation_count = 0
         self.last_ai_move = None  # 重置最新落子记录
+        # 重置会话Token记录
+        self._last_session_tokens = {
+            "input_tokens": 0,
+            "output_tokens": 0
+        }
         logger.info(f"LLM chat session initialized with {self.provider}")
     
     def _manage_conversation_history(self):
         """管理对话历史，保持在限制范围内"""
         if self.conversation_count >= MAX_CONVERSATION_HISTORY * 2:  # *2 因为每轮包含用户和AI消息
+            # 在重新初始化前累计Token使用量
+            self._accumulate_token_usage()
             # 重新初始化会话，但保留系统提示
             logger.info("Conversation history limit reached, reinitializing session")
             self._init_chat_session()
+
+    def _accumulate_token_usage(self):
+        """累计当前会话的Token使用量到游戏总计中"""
+        if self.chat_session and hasattr(self.chat_session, 'get_token_usage'):
+            session_usage = self.chat_session.get_token_usage()
+
+            # 获取当前会话的总Token使用量
+            session_input_tokens = session_usage.get("total_input_tokens", 0)
+            session_output_tokens = session_usage.get("total_output_tokens", 0)
+
+            # 计算新增的Token使用量（当前会话总量 - 上次记录的量）
+            new_input_tokens = session_input_tokens - self._last_session_tokens["input_tokens"]
+            new_output_tokens = session_output_tokens - self._last_session_tokens["output_tokens"]
+
+            # 累计到游戏总计中
+            self.total_game_tokens["input_tokens"] += new_input_tokens
+            self.total_game_tokens["output_tokens"] += new_output_tokens
+            self.total_game_tokens["total_tokens"] = (
+                self.total_game_tokens["input_tokens"] +
+                self.total_game_tokens["output_tokens"]
+            )
+
+            # 更新上次记录的会话Token数量
+            self._last_session_tokens["input_tokens"] = session_input_tokens
+            self._last_session_tokens["output_tokens"] = session_output_tokens
+
+            if new_input_tokens > 0 or new_output_tokens > 0:
+                logger.info(f"Token usage - New: +{new_input_tokens}(in) +{new_output_tokens}(out), Total: {self.total_game_tokens['total_tokens']}")
+
+    def reset_token_usage(self):
+        """重置Token使用量统计（游戏重置时调用）"""
+        self.total_game_tokens = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0
+        }
+        self._last_session_tokens = {
+            "input_tokens": 0,
+            "output_tokens": 0
+        }
+        logger.info("Token usage statistics reset")
     
     def get_move(self, game: GomokuGame) -> Tuple[Optional[int], Optional[int], str]:
         """
@@ -97,11 +158,14 @@ class LLMPlayer:
                 }
             )
             
+            # 累计Token使用量
+            self._accumulate_token_usage()
+
             # 解析响应
             move_data = self._parse_response(response)
             if move_data:
                 row, col, reasoning = move_data
-                
+
                 # 验证移动的有效性
                 if game.is_valid_move(row, col):
                     self.conversation_count += 1
@@ -224,12 +288,17 @@ class LLMPlayer:
 
     def get_context_info(self) -> Dict[str, Any]:
         """获取上下文信息，包括token统计"""
+        # 在返回信息前累计当前会话的Token使用量
+        self._accumulate_token_usage()
+
         context_info = {
             "llm_provider": self.provider,
             "model": self.model,
             "conversation_count": self.conversation_count,
             "max_conversation_history": MAX_CONVERSATION_HISTORY,
-            "estimated_tokens": 0,
+            "total_consumed_tokens": self.total_game_tokens["total_tokens"],
+            "input_tokens": self.total_game_tokens["input_tokens"],
+            "output_tokens": self.total_game_tokens["output_tokens"],
             "context_history": [],
             "last_ai_move": self.last_ai_move
         }
@@ -241,19 +310,10 @@ class LLMPlayer:
             if self.provider == "gemini":
                 # Gemini格式：直接使用
                 context_info["context_history"] = history
-                # 估算token数量
-                total_chars = 0
-                for message in history:
-                    if "parts" in message:
-                        for part in message["parts"]:
-                            if "text" in part:
-                                text = part["text"]
-                                total_chars += self._count_text_chars(text)
 
             elif self.provider == "lmstudio":
                 # LMStudio格式：转换为前端兼容格式
                 converted_history = []
-                total_chars = 0
 
                 for message in history:
                     if "role" in message and "content" in message:
@@ -264,20 +324,8 @@ class LLMPlayer:
                         }
                         converted_history.append(converted_message)
 
-                        # 统计字符数
-                        total_chars += self._count_text_chars(message["content"])
-
                 context_info["context_history"] = converted_history
-
-            # 估算token数（包括系统提示词）
-            system_prompt_tokens = len(SYSTEM_PROMPT) * 0.75
-            context_info["estimated_tokens"] = int(total_chars * 0.75 + system_prompt_tokens)
 
         return context_info
 
-    def _count_text_chars(self, text: str) -> int:
-        """统计文本字符数，用于token估算"""
-        # 中文字符数 + 英文单词数的估算
-        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
-        other_chars = len(text) - chinese_chars
-        return chinese_chars + int(other_chars * 0.5)
+

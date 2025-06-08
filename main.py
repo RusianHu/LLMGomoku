@@ -81,9 +81,9 @@ async def reset_game():
     """重置游戏"""
     global game, llm_player
     game.reset_game()
-    # 重新初始化LLM玩家以清除对话历史
+    # 重新初始化LLM玩家以清除对话历史和Token统计
     llm_player = LLMPlayer()
-    logger.info("Game reset")
+    logger.info("Game reset - Token usage statistics cleared")
     return JSONResponse(content={
         "success": True,
         "message": "游戏已重置",

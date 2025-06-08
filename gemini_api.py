@@ -161,6 +161,9 @@ class GeminiAPI:
             self._gen_cfg = generation_config or {}
             # Store system prompt separately, don't add to history yet.
             self._system_instruction = {"parts": [{"text": system_prompt}]} if system_prompt else None
+            # Token usage tracking
+            self._total_input_tokens = 0
+            self._total_output_tokens = 0
 
         @property
         def history(self) -> List[dict]:
@@ -171,6 +174,23 @@ class GeminiAPI:
                 display_history.extend(self._history)
                 return display_history
             return self._history
+
+        def _extract_token_usage(self, resp: dict) -> None:
+            """Extract and accumulate token usage from API response"""
+            usage_metadata = resp.get("usageMetadata", {})
+            if usage_metadata:
+                prompt_tokens = usage_metadata.get("promptTokenCount", 0)
+                candidates_tokens = usage_metadata.get("candidatesTokenCount", 0)
+                self._total_input_tokens += prompt_tokens
+                self._total_output_tokens += candidates_tokens
+
+        def get_token_usage(self) -> dict:
+            """Get total token usage for this session"""
+            return {
+                "total_input_tokens": self._total_input_tokens,
+                "total_output_tokens": self._total_output_tokens,
+                "total_tokens": self._total_input_tokens + self._total_output_tokens
+            }
 
         def send(self, text: str, **gen_cfg) -> dict:
             """Send user message; returns model candidate JSON."""
@@ -183,6 +203,9 @@ class GeminiAPI:
                 system_instruction=self._system_instruction,
                 generation_config=merged_cfg
             )
+
+            # Extract token usage from response
+            self._extract_token_usage(resp)
 
             # Safely extract and persist assistant reply into history
             if (resp.get("candidates") and
@@ -218,6 +241,9 @@ class GeminiAPI:
                 system_instruction=self._system_instruction,
                 generation_config=merged_cfg
             )
+
+            # Extract token usage from response
+            self._extract_token_usage(resp)
 
             # Safely extract and persist assistant reply into history
             if (resp.get("candidates") and

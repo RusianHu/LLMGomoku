@@ -33,7 +33,11 @@ class LMStudioAdapter:
             self.system_prompt = system_prompt
             self.generation_config = generation_config or {}
             self._history: List[Dict[str, Any]] = []
-            
+
+            # Token usage tracking
+            self._total_input_tokens = 0
+            self._total_output_tokens = 0
+
             # 如果有系统提示词，添加到历史记录
             if system_prompt:
                 self._history.append({
@@ -45,6 +49,28 @@ class LMStudioAdapter:
         def history(self) -> List[Dict[str, Any]]:
             """返回对话历史"""
             return self._history
+
+        def _estimate_token_usage(self, input_text: str, output_text: str) -> None:
+            """估算Token使用量（LMStudio可能不返回准确数据）"""
+            # 简单估算：中文字符按1个token，英文单词按0.75个token计算
+            def count_tokens(text: str) -> int:
+                chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+                other_chars = len(text) - chinese_chars
+                return chinese_chars + int(other_chars * 0.75)
+
+            input_tokens = count_tokens(input_text)
+            output_tokens = count_tokens(output_text)
+
+            self._total_input_tokens += input_tokens
+            self._total_output_tokens += output_tokens
+
+        def get_token_usage(self) -> dict:
+            """获取总Token使用量"""
+            return {
+                "total_input_tokens": self._total_input_tokens,
+                "total_output_tokens": self._total_output_tokens,
+                "total_tokens": self._total_input_tokens + self._total_output_tokens
+            }
 
         def send(self, text: str, **kwargs) -> Dict[str, Any]:
             """发送消息，返回Gemini格式的响应"""
@@ -68,10 +94,13 @@ class LMStudioAdapter:
 
                 # 调用LMStudio API
                 response_text = self.client.chat_multi(
-                    messages, 
+                    messages,
                     model=self.model,
                     **lmstudio_params
                 )
+
+                # 估算Token使用量
+                self._estimate_token_usage(text, response_text)
 
                 # 添加AI响应到历史
                 self._history.append({
@@ -121,8 +150,28 @@ class LMStudioAdapter:
                     **lmstudio_params
                 )
 
-                # 将JSON响应转换为文本
-                response_text = json.dumps(response_data, ensure_ascii=False)
+                # 记录原始响应数据用于调试
+                logger.info(f"LMStudio JSON response type: {type(response_data)}")
+                logger.info(f"LMStudio JSON response keys: {response_data.keys() if isinstance(response_data, dict) else 'Not a dict'}")
+
+                # 验证和清理JSON响应
+                cleaned_response = self._validate_and_clean_json_response(response_data)
+                if not cleaned_response:
+                    logger.error("Failed to validate JSON response, using fallback")
+                    raise ValueError("Invalid JSON response from LMStudio")
+
+                # 将清理后的JSON响应转换为文本
+                response_text = json.dumps(cleaned_response, ensure_ascii=False)
+
+                # 记录响应长度
+                logger.info(f"LMStudio cleaned JSON response length: {len(response_text)} characters")
+                if len(response_text) > 1000:
+                    logger.info(f"LMStudio cleaned JSON response preview: {response_text[:500]}...{response_text[-500:]}")
+                else:
+                    logger.info(f"LMStudio cleaned JSON response: {response_text}")
+
+                # 估算Token使用量
+                self._estimate_token_usage(text, response_text)
 
                 # 添加AI响应到历史
                 self._history.append({
@@ -135,6 +184,8 @@ class LMStudioAdapter:
 
             except Exception as e:
                 logger.error(f"Error in LMStudio JSON chat: {e}")
+                logger.error(f"Exception type: {type(e)}")
+                logger.error(f"Exception details: {str(e)}")
                 # 返回错误响应，保持Gemini格式
                 return {
                     "candidates": [{
@@ -180,6 +231,60 @@ class LMStudioAdapter:
                     converted[lmstudio_param] = config[gemini_param]
             
             return converted
+
+        def _validate_and_clean_json_response(self, response_data: Any) -> Optional[Dict[str, Any]]:
+            """验证和清理JSON响应，确保符合五子棋游戏的要求"""
+            try:
+                # 如果响应不是字典，尝试解析
+                if not isinstance(response_data, dict):
+                    logger.warning(f"Response is not a dict, type: {type(response_data)}")
+                    return None
+
+                # 检查必需的字段
+                required_fields = ["analysis", "move", "reasoning"]
+                for field in required_fields:
+                    if field not in response_data:
+                        logger.error(f"Missing required field: {field}")
+                        return None
+
+                # 验证move字段
+                move = response_data.get("move")
+                if not isinstance(move, dict):
+                    logger.error(f"Move field is not a dict: {move}")
+                    return None
+
+                if "row" not in move or "col" not in move:
+                    logger.error(f"Move missing row or col: {move}")
+                    return None
+
+                try:
+                    row = int(move["row"])
+                    col = int(move["col"])
+                except (ValueError, TypeError):
+                    logger.error(f"Invalid row/col values: {move}")
+                    return None
+
+                # 验证坐标范围
+                if not (0 <= row <= 14 and 0 <= col <= 14):
+                    logger.error(f"Row/col out of range: row={row}, col={col}")
+                    return None
+
+                # 构建清理后的响应
+                cleaned_response = {
+                    "analysis": str(response_data.get("analysis", "")),
+                    "move": {
+                        "row": row,
+                        "col": col
+                    },
+                    "reasoning": str(response_data.get("reasoning", ""))
+                }
+
+                logger.info(f"JSON response validated successfully: move=({row}, {col})")
+                return cleaned_response
+
+            except Exception as e:
+                logger.error(f"Error validating JSON response: {e}")
+                return None
 
         def _convert_to_gemini_response(self, response_text: str) -> Dict[str, Any]:
             """将LMStudio响应转换为Gemini格式"""

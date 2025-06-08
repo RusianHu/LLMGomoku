@@ -297,7 +297,7 @@ class GomokuUI {
         try {
             const response = await fetch('/api/game/context');
             const contextInfo = await response.json();
-            this.tokenCountElement.textContent = contextInfo.estimated_tokens || 0;
+            this.tokenCountElement.textContent = contextInfo.total_consumed_tokens || 0;
         } catch (error) {
             console.error('Failed to update token count:', error);
             this.tokenCountElement.textContent = '?';
@@ -314,7 +314,7 @@ class GomokuUI {
             document.getElementById('contextModel').textContent = contextInfo.model || '-';
             document.getElementById('contextConversationCount').textContent = contextInfo.conversation_count || 0;
             document.getElementById('contextMaxHistory').textContent = contextInfo.max_conversation_history || 5;
-            document.getElementById('contextTokenCount').textContent = contextInfo.estimated_tokens || 0;
+            document.getElementById('contextTokenCount').textContent = contextInfo.total_consumed_tokens || 0;
 
             // 更新对话历史
             const historyContent = document.getElementById('contextHistoryContent');

@@ -151,12 +151,67 @@ class LMStudioClient:
         """
         kwargs['response_format'] = {"type": "json_schema", "json_schema": {"name": "response", "schema": {"type": "object"}}}
         response_text = self.chat_multi(messages, model, **kwargs)
+
+        print(f"[DEBUG] LMStudio raw response length: {len(response_text)}")
+        if len(response_text) > 2000:
+            print(f"[DEBUG] LMStudio raw response preview: {response_text[:1000]}...{response_text[-1000:]}")
+        else:
+            print(f"[DEBUG] LMStudio raw response: {response_text}")
+
+        # 清理和提取JSON
+        cleaned_json = self._extract_and_clean_json(response_text)
+        if cleaned_json:
+            return cleaned_json
+
+        # 如果清理失败，尝试直接解析
         try:
             return json.loads(response_text)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             print("模型返回的不是一个有效的 JSON 字符串:")
-            print(response_text)
+            print(f"JSON解析错误: {e}")
+            print(f"响应文本: {response_text}")
             raise
+
+    def _extract_and_clean_json(self, text: str) -> Optional[Dict]:
+        """从响应文本中提取和清理JSON"""
+        try:
+            # 移除可能的markdown格式
+            text = text.strip()
+            if text.startswith("```json"):
+                text = text[7:]
+            if text.endswith("```"):
+                text = text[:-3]
+            text = text.strip()
+
+            # 查找JSON对象的开始和结束
+            start_idx = text.find('{')
+            if start_idx == -1:
+                return None
+
+            # 从后往前找最后一个完整的}
+            brace_count = 0
+            end_idx = -1
+            for i in range(start_idx, len(text)):
+                if text[i] == '{':
+                    brace_count += 1
+                elif text[i] == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        end_idx = i
+                        break
+
+            if end_idx == -1:
+                print("[DEBUG] Could not find complete JSON object")
+                return None
+
+            json_text = text[start_idx:end_idx + 1]
+            print(f"[DEBUG] Extracted JSON: {json_text}")
+
+            return json.loads(json_text)
+
+        except Exception as e:
+            print(f"[DEBUG] Error extracting JSON: {e}")
+            return None
 
     # --- 多模态方法 ---
 

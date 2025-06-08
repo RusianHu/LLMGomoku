@@ -20,20 +20,26 @@
 
 ## 安装和运行
 
-1. 安装依赖：
+1. 从 GitHub 克隆项目：
+```bash
+git clone https://github.com/RusianHu/LLMGomoku.git
+cd LLMGomoku
+```
+
+2. 安装依赖：
 ```bash
 pip install -r requirements.txt
 ```
 
-2. 配置 API Key：
+3. 配置 API Key：
 将 `config.py.env` 重命名为 `config.py`，并编辑配置文件。
 
-3. 启动服务器：
+4. 启动服务器：
 ```bash
 python main.py
 ```
 
-4. 打开浏览器访问：
+5. 打开浏览器访问：
 ```
 http://127.0.0.1:8000
 ```
@@ -43,11 +49,15 @@ http://127.0.0.1:8000
 ```
 LLMGomoku/
 ├── main.py                 # FastAPI 主应用
-├── config.py               # 配置文件
+├── config.py.env           # 配置文件模板
 ├── game_logic.py           # 五子棋游戏逻辑
 ├── llm_player.py           # LLM 玩家逻辑
 ├── gemini_api.py           # Gemini API 工具类
+├── lmstudio_adapter.py     # LMStudio 适配器
+├── lmstudio_client.py      # LMStudio 客户端
 ├── requirements.txt        # 依赖列表
+├── test_features.py        # 测试功能脚本
+├── LICENSE                 # 项目许可证
 └── static/                 # 静态文件
     ├── index.html          # 主页面
     ├── style.css           # 样式文件

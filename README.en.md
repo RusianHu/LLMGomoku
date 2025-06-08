@@ -18,20 +18,26 @@ A Gomoku game powered by Gemini AI, implemented with a FastAPI backend and a web
 
 ## Installation and Usage
 
-1.  Install dependencies:
+1.  Clone the project from GitHub:
+    ```bash
+    git clone https://github.com/RusianHu/LLMGomoku.git
+    cd LLMGomoku
+    ```
+
+2.  Install dependencies:
     ```bash
     pip install -r requirements.txt
     ```
 
-2.  Configure API Key:
+3.  Configure API Key:
     Rename `config.py.env` to `config.py` and edit the configuration file.
 
-3.  Start the server:
+4.  Start the server:
     ```bash
     python main.py
     ```
 
-4.  Open your browser and visit:
+5.  Open your browser and visit:
     ```
     http://127.0.0.1:8000
     ```
@@ -41,11 +47,15 @@ A Gomoku game powered by Gemini AI, implemented with a FastAPI backend and a web
 ```
 LLMGomoku/
 ├── main.py                 # FastAPI main application
-├── config.py               # Configuration file
+├── config.py.env           # Configuration file template
 ├── game_logic.py           # Gomoku game logic
 ├── llm_player.py           # LLM player logic
 ├── gemini_api.py           # Gemini API utility class
+├── lmstudio_adapter.py     # LMStudio adapter
+├── lmstudio_client.py      # LMStudio client
 ├── requirements.txt        # Dependency list
+├── test_features.py        # Test features script
+├── LICENSE                 # Project license
 └── static/                 # Static files
     ├── index.html          # Main page
     ├── style.css           # Stylesheet

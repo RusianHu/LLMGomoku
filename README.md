@@ -10,6 +10,9 @@
 
 一个使用 Gemini AI 驱动的五子棋游戏，采用 FastAPI + 前端 Web 界面实现。
 
+![image](https://github.com/user-attachments/assets/d2bf9a20-6642-4938-85af-da78d8ab960b)
+
+
 ## 技术栈
 
 - **后端**: Python + FastAPI

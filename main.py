@@ -9,7 +9,18 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 import logging
 import os
+import sys
 from typing import Dict, Any
+
+# 检查配置文件是否存在
+if not os.path.exists("config.py"):
+    if os.path.exists("config.py.env"):
+        print("错误: 配置文件 config.py 不存在。")
+        print("请将 config.py.env 重命名为 config.py, 并填写必要的配置信息 (例如 GEMINI_API_KEY)。")
+        sys.exit(1)
+    else:
+        print("错误: 找不到配置文件 config.py 或模板文件 config.py.env。")
+        sys.exit(1)
 
 from game_logic import GomokuGame
 from llm_player import LLMPlayer

@@ -2,20 +2,11 @@
 
 一个使用 Gemini AI 驱动的五子棋游戏，采用 FastAPI + 前端 Web 界面实现。
 
-## 功能特点
-
-- 🤖 **AI 对手**: 使用 Google Gemini API 驱动的智能 AI 玩家
-- 🎮 **Web 界面**: 基于 FastAPI 的现代化 Web 界面
-- 🎨 **二次元风格**: 精美的界面设计
-- 📊 **实时分析**: 显示 AI 的思考过程和决策理由
-- 🔄 **JSON 通信**: 标准化的棋盘状态和移动格式
-
 ## 技术栈
 
 - **后端**: Python + FastAPI
 - **AI**: Google Gemini API
 - **前端**: HTML + CSS + JavaScript
-- **样式**: 现代化二次元风格设计
 
 ## 安装和运行
 
@@ -25,7 +16,7 @@ pip install -r requirements.txt
 ```
 
 2. 配置 API Key：
-编辑 `config.py` 文件中的 `GEMINI_API_KEY`
+将 `config.py.env` 重命名为 `config.py`，并编辑配置文件。
 
 3. 启动服务器：
 ```bash
@@ -41,16 +32,16 @@ http://127.0.0.1:8000
 
 ```
 LLMGomoku/
-├── main.py              # FastAPI 主应用
-├── config.py            # 配置文件
-├── game_logic.py        # 五子棋游戏逻辑
-├── llm_player.py        # LLM 玩家逻辑
-├── gemini_api.py        # Gemini API 工具类
-├── requirements.txt     # 依赖列表
-└── static/             # 静态文件
-    ├── index.html      # 主页面
-    ├── style.css       # 样式文件
-    └── script.js       # 前端逻辑
+├── main.py                 # FastAPI 主应用
+├── config.py               # 配置文件
+├── game_logic.py           # 五子棋游戏逻辑
+├── llm_player.py           # LLM 玩家逻辑
+├── gemini_api.py           # Gemini API 工具类
+├── requirements.txt        # 依赖列表
+└── static/                 # 静态文件
+    ├── index.html          # 主页面
+    ├── style.css           # 样式文件
+    └── script.js           # 前端逻辑
 ```
 
 ## 游戏规则

@@ -1,5 +1,7 @@
 # LLMGomoku - AI驱动的五子棋游戏
 
+[English](README.en.md)
+
 一个使用 Gemini AI 驱动的五子棋游戏，采用 FastAPI + 前端 Web 界面实现。
 
 ## 技术栈
@@ -60,11 +62,35 @@ LLMGomoku/
 
 ## 配置说明
 
-在 `config.py` 中可以配置：
-- Gemini API Key 和模型
-- 棋盘大小和获胜条件
-- LLM 对话历史长度
-- 服务器端口等
+所有配置项均在 `config.py` 文件中设置。
+
+-   **LLM 提供商 (`LLM_PROVIDER`)**: 选择使用的 LLM 服务。
+    -   `"gemini"`: 使用 Google Gemini API (默认)。
+    -   `"lmstudio"`: 使用本地运行的 LMStudio 服务。
+-   **Gemini API 配置**:
+    -   `GEMINI_API_KEY`: 你的 Google Gemini API 密钥。
+    -   `GEMINI_MODEL`: 使用的 Gemini 模型 (例如: `"gemini-1.5-flash-preview-0514"`)。
+-   **LMStudio 配置**:
+    -   `LMSTUDIO_BASE_URL`: LMStudio 服务的地址 (例如: `"http://localhost:1234/v1"`)。
+    -   `LMSTUDIO_MODEL`: 使用的本地模型名称。
+-   **LLM 对话配置**:
+    -   `MAX_CONVERSATION_HISTORY`: 保留的对话历史轮数。
+    -   `MAX_OUTPUT_TOKENS`: LLM 生成内容的最大长度。
+-   **棋盘配置**:
+    -   `BOARD_SIZE`: 棋盘大小 (例如: `15` 代表 15x15)。
+    -   `WIN_LENGTH`: 获胜所需的连续棋子数量 (例如: `5`)。
+-   **游戏配置**:
+    -   `PLAYER_SYMBOL`, `AI_SYMBOL`, `EMPTY_SYMBOL`: 分别定义玩家、AI和空格在棋盘上的表示符号。
+-   **服务器配置**:
+    -   `HOST`: 服务器监听地址。
+    -   `PORT`: 服务器监听端口。
+    -   `DEBUG`: 是否开启 FastAPI 的调试模式。
+-   **调试模式 (`DEBUG_MODE`)**:
+    -   `True`: 启用游戏内调试窗口和更详细的日志输出。
+-   **系统提示词 (`SYSTEM_PROMPT`)**:
+    -   用于指导 AI 行为的详细系统提示。
+-   **LLM 响应格式 (`LLM_RESPONSE_SCHEMA`)**:
+    -   定义了要求 LLM 返回的 JSON 对象的结构。
 
 ## 开发说明
 
